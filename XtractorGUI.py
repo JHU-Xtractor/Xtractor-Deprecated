@@ -1,8 +1,10 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QTabBar, QWidget, QHBoxLayout, QTableWidget, QGraphicsView, QTableWidgetItem, QPushButton, QFileDialog, QSizePolicy, QScrollBar
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QTabBar, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QGraphicsView, QTableWidgetItem, QPushButton, QFileDialog, QSizePolicy, QScrollBar
 from PyQt5.QtGui import QIcon, QPixmap, QImage, QPainter, QImage
 from PyQt5.QtCore import Qt, QFile, QEvent
 from PyQt5.QtWidgets import QGraphicsScene
-
+from Pipeline import extract
+import os
+import csv
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -18,6 +20,9 @@ class MainWindow(QMainWindow):
         # Create the tab widget
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setTabPosition(QTabWidget.South)
+
+        # Create empty dict of file_paths
+        self.file_paths = {}
 
         # Add the initial tab
         self.add_new_tab()
@@ -54,26 +59,35 @@ class MainWindow(QMainWindow):
         # Create the table widget and add it to the layout
         table_widget = QTableWidget(tab)
         table_widget.horizontalHeader().setStretchLastSection(True)
-        table_widget.setRowCount(4)
-        table_widget.setColumnCount(3)
         table_widget.setAlternatingRowColors(True)
         table_widget.setShowGrid(True)
-        table_widget.setItem(0, 0, QTableWidgetItem("1"))
-        table_widget.setItem(1, 0, QTableWidgetItem("2"))
-        table_widget.setItem(2, 0, QTableWidgetItem("3"))
-        table_widget.setItem(3, 0, QTableWidgetItem("4"))
 
         layout.addWidget(table_widget)
 
+        toolBarLayout = QVBoxLayout(tab)
+        layout.addLayout(toolBarLayout)
+       
         # Add the "Add File" button to the tab
         add_file_button = QPushButton("Add File", tab)
         add_file_button.clicked.connect(lambda: self.add_file_to_tab(graphics_view))
-        layout.addWidget(add_file_button)
+        toolBarLayout.addWidget(add_file_button)
+
+        # Add the "Extract" button to the tab
+        extract_table_button = QPushButton("Extract", tab)
+        extract_table_button.clicked.connect(lambda: self.preExtract(graphics_view, table_widget))
+        toolBarLayout.addWidget(extract_table_button)
+
+        # Add the "Extract" button to the tab
+        export_table_button = QPushButton("Export", tab)
+        export_table_button.clicked.connect(lambda: self.export(table_widget))
+        toolBarLayout.addWidget(export_table_button)
 
         # Add the tab to the tab widget
-        self.tab_widget.insertTab(self.tab_widget.count() - 1, tab, "Tab {}".format(self.tab_widget.count()))
+        self.tab_widget.addTab(tab, "Tab {}".format(self.tab_widget.count()))
 
+    
     def add_file_to_tab(self, graphics_view):
+
         # Prompt the user to select a PDF file
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Table File", filter="")
 
@@ -88,6 +102,54 @@ class MainWindow(QMainWindow):
                 graphics_view.fitInView(scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
                 file.close()
 
+                idx = self.tab_widget.currentIndex()
+                file_name = os.path.basename(file_path).split('/')[-1]
+                self.tab_widget.setTabText(idx, file_name)
+
+                self.file_paths[file_name] = file_path
+
+    
+    def preExtract(self, graphics_view, table_widget):
+        idx = self.tab_widget.currentIndex()
+        file_name = self.tab_widget.tabText(idx)
+        
+        file_path = self.file_paths[file_name]
+
+        bounded, mat = extract(file_path)
+
+        # pixmap = QPixmap.fromImage(QImage(bounded))
+        # scene = QGraphicsScene(graphics_view)
+        # scene.addPixmap(pixmap)
+        # graphics_view.setScene(scene)
+        # graphics_view.fitInView(scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+        table_widget.setColumnCount(mat.shape[1])
+        table_widget.setRowCount(mat.shape[0])
+
+        for i in range(table_widget.columnCount()):
+            for j in range(table_widget.rowCount()):
+                item = QTableWidgetItem(mat[j, i])
+                table_widget.setItem(j, i, item)
+
+
+    def export(self, table_widget):
+
+        file_path, _ = QFileDialog.getSaveFileName(self, "Choose Save Location", filter="CSV FILES(*.csv)")
+
+        if not file_path: 
+            return
+
+        with open(file_path, mode="w", newline='') as file:
+
+            writer = csv.writer(file, delimiter=',', quotechar='|')
+
+            for i in range(table_widget.rowCount()):
+                row = []
+                for j in range(table_widget.columnCount()):
+                    row.append(table_widget.item(i, j).text())
+                writer.writerow(row)
+                row.clear()
+
 
 class ZoomView(QGraphicsView):
     def wheelEvent(self, event):
@@ -97,6 +159,7 @@ class ZoomView(QGraphicsView):
             else:
                 scale = 0.85
             self.scale(scale, scale)
+    
             
 if __name__ == '__main__':
     app = QApplication([])
