@@ -14,6 +14,11 @@ class MainWindow(QMainWindow):
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
 
+        self.setWindowIcon(QIcon('logo.png'))
+        self.setWindowTitle("Xtractor")
+        self.setGeometry(300, 300, 800, 600)
+        self.setWindowState(Qt.WindowMaximized)
+
         # Create the vertical layout for the central widget
         vertical_layout = QHBoxLayout(central_widget)
 
@@ -24,15 +29,17 @@ class MainWindow(QMainWindow):
         # Create empty dict of file_paths
         self.file_paths = {}
 
-        # Add the initial tab
-        self.add_new_tab()
-
         # Create the plus button to add new tabs
         plus_button = QPushButton("+", self)
         plus_button.clicked.connect(self.add_new_tab)
 
+        self.plus_tab = QWidget()
+        self.plus_tab.setObjectName("main")
+        # Set the background image
+        self.plus_tab.setStyleSheet('QWidget#main{background-image:url("background.png"); background-position: center; background-repeat: no-repeat;}')
+
         # Add the plus button to the tab widget
-        self.tab_widget.addTab(QWidget(), "")
+        self.tab_widget.addTab(self.plus_tab, "")
         self.tab_widget.setTabEnabled(self.tab_widget.count() - 1, False)
         self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QTabBar.RightSide, plus_button)
         self.tab_widget.setTabsClosable(True)
@@ -64,7 +71,7 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(table_widget)
 
-        toolBarLayout = QVBoxLayout(tab)
+        toolBarLayout = QVBoxLayout()
         layout.addLayout(toolBarLayout)
        
         # Add the "Add File" button to the tab
@@ -83,7 +90,9 @@ class MainWindow(QMainWindow):
         toolBarLayout.addWidget(export_table_button)
 
         # Add the tab to the tab widget
-        self.tab_widget.addTab(tab, "Tab {}".format(self.tab_widget.count()))
+        idx = self.tab_widget.count() - 1
+        self.tab_widget.insertTab(idx, tab, "Tab {}".format(self.tab_widget.count()))
+        self.tab_widget.setCurrentIndex(idx)
 
     
     def add_file_to_tab(self, graphics_view):
@@ -113,6 +122,9 @@ class MainWindow(QMainWindow):
         idx = self.tab_widget.currentIndex()
         file_name = self.tab_widget.tabText(idx)
         
+        if file_name not in self.file_paths:
+                return
+
         file_path = self.file_paths[file_name]
 
         bounded, mat = extract(file_path)
@@ -141,7 +153,7 @@ class MainWindow(QMainWindow):
 
         with open(file_path, mode="w", newline='') as file:
 
-            writer = csv.writer(file, delimiter=',', quotechar='|')
+            writer = csv.writer(file, delimiter=',', quotechar='"')
 
             for i in range(table_widget.rowCount()):
                 row = []

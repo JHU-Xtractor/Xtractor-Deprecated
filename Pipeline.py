@@ -207,6 +207,7 @@ def AClustering(orig, contours, psm=13, oem=3, digits=False):
   numRows = 0
   tokens = []
   tokenCoords = []
+  tableCoords = []
 
   # loop over the clusters again, this time in sorted order
   # for (l, _) in sortedClusters:
@@ -226,6 +227,7 @@ def AClustering(orig, contours, psm=13, oem=3, digits=False):
     # loop over the sorted indexes
     im_list = []
     tokenCoords.append([])
+    tableCoords.append([])
     for i in sortedIdxs:
       # extract the text bounding box coordinates and draw the
       # bounding box surrounding the current element
@@ -237,6 +239,7 @@ def AClustering(orig, contours, psm=13, oem=3, digits=False):
       newImg = orig[y:y+h, x:x+w]
       im_list.append(newImg)
       tokenCoords[j].append((x,y,w,h))
+      tableCoords[j].append((i, j))
 
     #get row count by counting max number of boxes:
     numRows = max(numRows, len(im_list))
@@ -249,7 +252,7 @@ def AClustering(orig, contours, psm=13, oem=3, digits=False):
     tokens.append(temp)
     
   numCols = len(sortedClusters)
-  return numRows, numCols, tokens, tokenCoords
+  return numRows, numCols, tokens, tokenCoords, tableCoords
 
 def AClusteringY(orig, contours, numRows):
   yCoords = []
@@ -334,6 +337,7 @@ def find_text(orig, psm=13, oem=3, digits=False):
 
   invert = 255 - dilate
 
+  #do we really need all this now ?
   contours, hierarchy = cv2.findContours(invert, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
   area = img.shape[0] * img.shape[1]
 
@@ -351,7 +355,7 @@ def find_text(orig, psm=13, oem=3, digits=False):
 
   ##################
 
-  num_rows, num_cols, tokens, tokenCoords = AClustering(orig.copy(), finalContours, psm, oem, digits)
+  num_rows, num_cols, tokens, tokenCoords, tableCoords = AClustering(orig.copy(), finalContours, psm, oem, digits)
   AClusteringY(orig.copy(), finalContours, num_rows)
 
   mat = np.empty((num_rows, num_cols), dtype=np.dtype('U100'))
@@ -360,6 +364,7 @@ def find_text(orig, psm=13, oem=3, digits=False):
       for j in range(len(tokenCoords[i])):
 
         (x,y,w,h) = tokenCoords[i][j]
+        (tx, ty) = tableCoords[i][j]
 
         midx = x + (w/2)
         midy = y + (h/2)
@@ -398,7 +403,7 @@ def convert(img, psm=6, oem=3, digits=False):
   gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
   kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2,2))
   opening = cv2.morphologyEx(gray, cv2.MORPH_OPEN, kernel, iterations=1)
-  gray = cv2.resize(gray, (0,0), fx=2, fy=2)
+  gray = cv2.resize(gray, (0,0), fx=2, fy=3)
 
   config = '--psm ' + str(psm) +  "--oem " + str(oem)
 
