@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QTabBar, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QGraphicsView, QTableWidgetItem, QPushButton, QFileDialog, QSizePolicy, QScrollBar
-from PyQt5.QtGui import QIcon, QPixmap, QImage, QPainter, QImage
+from PyQt5.QtWidgets import QLabel, QApplication, QMainWindow, QTabWidget, QTabBar, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTableWidget, QGraphicsView, QTableWidgetItem, QPushButton, QFileDialog
+from PyQt5.QtGui import QIcon, QPixmap, QImage, QBrush
 from PyQt5.QtCore import Qt, QFile, QEvent
 from PyQt5.QtWidgets import QGraphicsScene
 from Pipeline import extract
@@ -32,7 +32,9 @@ class MainWindow(QMainWindow):
         plus_button.clicked.connect(self.add_new_tab)
 
         # Add the plus button to the tab widget
-        self.tab_widget.addTab(QWidget(), "")
+        plusTab = QWidget()
+
+        self.tab_widget.addTab(plusTab, "")
         self.tab_widget.setTabEnabled(self.tab_widget.count() - 1, False)
         self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QTabBar.RightSide, plus_button)
         self.tab_widget.setTabsClosable(True)
@@ -50,6 +52,7 @@ class MainWindow(QMainWindow):
 
         # Create the graphics view and add it to the layout
         graphics_view = ZoomView(tab)
+
         graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         graphics_view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
@@ -117,11 +120,13 @@ class MainWindow(QMainWindow):
 
         bounded, mat = extract(file_path)
 
-        # pixmap = QPixmap.fromImage(QImage(bounded))
-        # scene = QGraphicsScene(graphics_view)
-        # scene.addPixmap(pixmap)
-        # graphics_view.setScene(scene)
-        # graphics_view.fitInView(scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        qimage = QImage(bounded.data, bounded.shape[1], bounded.shape[0], bounded.strides[0] ,QImage.Format_RGB888)
+
+        pixmap = QPixmap.fromImage(qimage)
+        scene = QGraphicsScene(graphics_view)
+        scene.addPixmap(pixmap)
+        graphics_view.setScene(scene)
+        graphics_view.fitInView(scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
         table_widget.setColumnCount(mat.shape[1])
         table_widget.setRowCount(mat.shape[0])
@@ -141,7 +146,7 @@ class MainWindow(QMainWindow):
 
         with open(file_path, mode="w", newline='') as file:
 
-            writer = csv.writer(file, delimiter=',', quotechar='|')
+            writer = csv.writer(file, delimiter=',', quotechar='"')
 
             for i in range(table_widget.rowCount()):
                 row = []
@@ -152,6 +157,7 @@ class MainWindow(QMainWindow):
 
 
 class ZoomView(QGraphicsView):
+
     def wheelEvent(self, event):
         if event.modifiers() == Qt.ControlModifier:
             if event.angleDelta().y() > 0:
@@ -159,6 +165,7 @@ class ZoomView(QGraphicsView):
             else:
                 scale = 0.85
             self.scale(scale, scale)
+
     
             
 if __name__ == '__main__':

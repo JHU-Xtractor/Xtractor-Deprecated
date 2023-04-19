@@ -141,31 +141,6 @@ def removedLinesCOMBO2(orig, showOrig=True):
 
   return orig if showOrig == True else mask
 
-def countCols(shape, finalContours, orig, showImages = False):
-  colImg = np.zeros(shape, dtype=np.uint8)
-  colImg.fill(255)
-
-  for cnt in finalContours:
-    x,y,w,h = cv2.boundingRect(cnt)
-    cv2.rectangle(colImg,(x+3,y),(x+w-3,y+h),(0, 0, 0), -1)
-
-  colImg = cv2.cvtColor(colImg, cv2.COLOR_BGR2GRAY)
-  resize = cv2.resize(colImg, (shape[1], 10))
-  blur = cv2.GaussianBlur(resize, (3,3), 0)  
-  ret,thresh = cv2.threshold(blur,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-  
-  kWidth = 10#int(shape[0]/8)
-
-  kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kWidth, 2))
-  erode = cv2.erode(thresh, kernel, iterations=2)
-  
-  kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 20))
-  dilate = cv2.dilate(erode, kernel, iterations=1)
-
-  contours, hierarchy = cv2.findContours(dilate, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-  return len(contours)
-
 def AClustering(orig, contours, psm=13, oem=3, digits=False):
   xCoords = []
   coords = []
@@ -347,6 +322,7 @@ def find_text(orig, psm=13, oem=3, digits=False):
     x,y,w,h = cv2.boundingRect(cnt)
     if ((h * w) / area) < 0.000165 or ((h * w) / area) > 0.5:
       continue
+
     finalContours.append(cnt)
 
   ##################
@@ -360,6 +336,8 @@ def find_text(orig, psm=13, oem=3, digits=False):
       for j in range(len(tokenCoords[i])):
 
         (x,y,w,h) = tokenCoords[i][j]
+        cv2.rectangle(orig, (x, y), (x + w, y + h), (255, 0, 0), 1)
+
 
         midx = x + (w/2)
         midy = y + (h/2)
@@ -373,6 +351,7 @@ def find_text(orig, psm=13, oem=3, digits=False):
         except IndexError:
           pass
 
+  
   return orig, mat
 
 def hconcat_resize_max(im_list, interpolation=cv2.INTER_CUBIC):
@@ -398,7 +377,7 @@ def convert(img, psm=6, oem=3, digits=False):
   gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
   kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2,2))
   opening = cv2.morphologyEx(gray, cv2.MORPH_OPEN, kernel, iterations=1)
-  gray = cv2.resize(gray, (0,0), fx=2, fy=2)
+  gray = cv2.resize(gray, (0,0), fx=2, fy=3)
 
   config = '--psm ' + str(psm) +  "--oem " + str(oem)
 
@@ -418,7 +397,9 @@ def extract(IMAGE_PATH):
   # removed_lines = removedLinesCOMBO2(image)
     
   bounded, mat = find_text(removed_lines, 11, 1)
-  
+
+  # cv2.namedWindow('Image', cv2.WINDOW_GUI_NORMAL)
+  # cv2.imshow("Image", bounded)  
 #   DF = pd.DataFrame(mat)
 #   DF.to_csv("mat.csv")
   
