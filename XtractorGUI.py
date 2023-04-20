@@ -14,7 +14,7 @@ class MainWindow(QMainWindow):
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
 
-        self.setWindowIcon(QIcon('logo.png'))
+        self.setWindowIcon(QIcon('resources/logo.png'))
         self.setWindowTitle("Xtractor")
         self.setGeometry(300, 300, 800, 600)
         self.setWindowState(Qt.WindowMaximized)
@@ -36,7 +36,7 @@ class MainWindow(QMainWindow):
         self.plus_tab = QWidget()
         self.plus_tab.setObjectName("main")
         # Set the background image
-        self.plus_tab.setStyleSheet('QWidget#main{background-image:url("background.png"); background-position: center; background-repeat: no-repeat;}')
+        self.plus_tab.setStyleSheet('QWidget#main{background-image:url("resources/background.png"); background-position: center; background-repeat: no-repeat;}')
 
         # Add the plus button to the tab widget
         self.tab_widget.addTab(self.plus_tab, "")

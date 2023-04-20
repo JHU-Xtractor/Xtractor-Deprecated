@@ -331,6 +331,8 @@ def find_text(orig, psm=13, oem=3, digits=False):
 
   ##################
 
+  finalContours = connectBoxes(finalContours)
+
   num_rows, num_cols, tokens, tokenCoords, tableCoords = AClustering(orig.copy(), finalContours, psm, oem, digits)
   AClusteringY(orig.copy(), finalContours, num_rows)
 
@@ -370,6 +372,34 @@ def hconcat_resize_max(im_list, interpolation=cv2.INTER_CUBIC):
       new_list.append(im2)
 
     return cv2.hconcat(new_list)
+
+def connectBoxes(contours):
+    arect = []
+    urect = []
+
+    contours = sorted(contours, key=lambda x: cv2.boundingRect(x)[0])
+    for ridx, rval in enumerate(contours):
+        if (ridx in urect):
+            continue
+
+        x,y,w,h = cv2.boundingRect(rval)
+        px = x + w + 5
+        py = y + round(h/2)
+        urect.append(ridx)
+        
+        for sidx, sval in enumerate(contours[(ridx+1):], start=(ridx+1)):
+            x2, y2, w2, h2 = cv2.boundingRect(sval)
+            if (px > x2 and px < x2+w2 and py > y2 and py < y2+h2):
+                w = abs(x2 + w2 - x)
+                h = abs(y2 + h2 - y)
+                px = x + w + 5
+                py = y + round(h/2)
+                urect.append(sidx)
+
+        arect.append(np.array([(x,y), (x+w,y), (x+w,y+h), (x,y+h)], dtype=int))
+
+    return arect
+
 
 def convert(img, psm=6, oem=3, digits=False):
   """
