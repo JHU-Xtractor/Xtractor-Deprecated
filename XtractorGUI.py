@@ -47,61 +47,100 @@ class MainWindow(QMainWindow):
         self.bar.currentChanged.connect(self.change_tab)
         self.bar.setTabsClosable(True)
 
+        self.tabSetup()
+
     def tabSetup(self):
         # Create the graphics view and add it to the layout
-        graphics_view = ZoomView(self.window)
+        self.graphics_view = ZoomView(self.window)
 
-        graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        graphics_view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        self.graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.graphics_view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
 
-        self.window.layout().addWidget(graphics_view)
+        self.window.layout().addWidget(self.graphics_view)
 
         # Create the table widget and add it to the layout
-        table_widget = QTableWidget(self.window)
-        table_widget.horizontalHeader().setStretchLastSection(True)
-        table_widget.setAlternatingRowColors(True)
-        table_widget.setShowGrid(True)
+        self.table_widget = QTableWidget(self.window)
+        self.table_widget.horizontalHeader().setStretchLastSection(True)
+        self.table_widget.setAlternatingRowColors(True)
+        self.table_widget.setShowGrid(True)
 
-        self.window.layout().addWidget(table_widget)
+        self.window.layout().addWidget(self.table_widget)
 
-        toolBarLayout = QVBoxLayout()
-        self.window.layout().addLayout(toolBarLayout)
+        self.toolBarLayout = QVBoxLayout()
+        self.window.layout().addLayout(self.toolBarLayout)
        
         # Add the "Add File" button to the tab
         add_file_button = QPushButton("Add File", self.window)
-        add_file_button.clicked.connect(lambda: self.add_file_to_tab(graphics_view))
-        toolBarLayout.addWidget(add_file_button)
+        add_file_button.clicked.connect(lambda: self.add_file_to_tab(self.graphics_view))
+        self.toolBarLayout.addWidget(add_file_button)
 
         # Add the "Extract" button to the tab
         extract_table_button = QPushButton("Extract", self.window)
-        extract_table_button.clicked.connect(lambda: self.preExtract(graphics_view, table_widget))
-        toolBarLayout.addWidget(extract_table_button)
+        extract_table_button.clicked.connect(lambda: self.preExtract(self.graphics_view, self.table_widget))
+        self.toolBarLayout.addWidget(extract_table_button)
 
         # Add the "Extract" button to the tab
         export_table_button = QPushButton("Export", self.window)
-        export_table_button.clicked.connect(lambda: self.export(table_widget))
-        toolBarLayout.addWidget(export_table_button)
+        export_table_button.clicked.connect(lambda: self.export(self.table_widget))
+        self.toolBarLayout.addWidget(export_table_button)
+
+        self.graphics_view.hide()
+        self.table_widget.hide()
+        for i in range(self.toolBarLayout.count()):
+            w = self.toolBarLayout.itemAt(i).widget()
+            if w is not None:
+                w.hide()
 
     def remove_tab(self, index):
-        layout = self.window.layout()
+        layout = self.toolBarLayout
 
         self.bar.removeTab(index)
         if self.bar.count() == 1:
-            for i in reversed(range(layout.count())):
+            self.graphics_view.hide()
+            self.table_widget.hide()
+            for i in range(layout.count()):
                 w = layout.itemAt(i).widget()
-                layout.removeWidget(w)
-                w.setParent(None)
+                if w is not None:
+                    w.hide()
 
     def add_new_tab(self):
         if self.bar.count() == 1:
-            self.tabSetup()
+            self.graphics_view.show()
+            self.table_widget.show()
+            for i in range(self.toolBarLayout.count()):
+                w = self.toolBarLayout.itemAt(i).widget()
+                if w is not None:
+                    w.show()
+
         # Add the tab to the tab widget
         idx = self.bar.count() - 1
         self.bar.insertTab(idx, "Tab {}".format(self.bar.count()))
         self.bar.setCurrentIndex(idx)
 
     def change_tab(self, index):
+        file_name = self.bar.tabText(index)
+        if file_name in self.file_paths:
+            file = QFile(self.file_paths[file_name])
+            if file.open(QFile.ReadOnly):
+                pixmap = QPixmap.fromImage(QImage(file_name))
+                scene = QGraphicsScene(self.graphics_view)
+                scene.addPixmap(pixmap)
+                self.graphics_view.setScene(scene)
+                self.graphics_view.fitInView(scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+                file.close()
+
+            mat = self.data[file_name]
+            self.table_widget.setColumnCount(mat.shape[1])
+            self.table_widget.setRowCount(mat.shape[0])
+
+            for i in range(self.table_widget.columnCount()):
+                for j in range(self.table_widget.rowCount()):
+                    item = QTableWidgetItem(mat[j, i])
+                    self.table_widget.setItem(j, i, item)
+        else:
+            self.graphics_view.setScene(None)
+            self.table_widget.clear()
         return
     
     def add_file_to_tab(self, graphics_view):
@@ -148,6 +187,7 @@ class MainWindow(QMainWindow):
 
         table_widget.setColumnCount(mat.shape[1])
         table_widget.setRowCount(mat.shape[0])
+        self.data[file_name] = mat
 
         for i in range(table_widget.columnCount()):
             for j in range(table_widget.rowCount()):
